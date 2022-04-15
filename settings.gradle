@@ -1,0 +1,5 @@
+rootProject.name = 'camunda8-examples'
+
+include 'client-app'
+include 'service1'
+include 'service2'
