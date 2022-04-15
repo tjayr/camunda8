@@ -9,6 +9,9 @@ This project contains multiple Zeebe spring boot workers that implement the serv
 ## Requirements
 
 - Docker compose 1.29
+- Download zeeba-hazelcast-exporter fat jar to the root of this project:
+
+`wget -O zeebe-hazelcast-exporter-1.1.0-jar-with-dependencies.jar https://github.com/camunda-community-hub/zeebe-hazelcast-exporter/releases/download/1.1.0/zeebe-hazelcast-exporter-1.1.0-jar-with-dependencies.jar`
 
 The provider docker-compose.yml will spin up Zeebe, Elasticsearch and the [Simple Monitor](https://github.com/camunda-community-hub/zeebe-simple-monitor). 
 
