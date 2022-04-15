@@ -1,0 +1,6 @@
+zeebe:
+  client:
+    security:
+      plaintext: true
+    broker:
+      gateway-address: 127.0.0.1:26500
