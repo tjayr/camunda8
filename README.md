@@ -34,3 +34,45 @@ The process requires an input variable called `source` , the json value can be a
 The experimental folder contains docker-compose files for exporting data from Zeebe to Opensearch instead of Elasticsearch.  
 
 `client-app` is a module for interacting with the Zeebe api to deploy and start processes.
+
+## Deploying on Fargate
+
+Note: CDK v2 is required.
+
+The cdk module contains a CDK application with a number of stacks for deploying Zeebe 8 on AWS Fargate.
+
+```bash
+$ cdk ls
+
+zeebe-hazelcast-stack
+zeebe-stack
+
+$ cdk diff zeebe-hazelcast-stack
+
+$ cdk deploy zeebe-hazelcast-stack
+
+```
+
+`zeebe-stack` will create a single Zeebe service (1 task, 1 container) instance on Fargate. The default VPC is used, the container is deployed into a public subnet.
+This uses the `camunda/zeebe:8.0.0` from Docker hub. There is no additional configuration applied apart from the environment variables 
+
+`zeebe-hazelcast-stack`, will deploy Zeebe with the same network infrastructure as zeebe-stack but will also enable Hazelcast exporter.
+The Hazelcast exporter is added to custom Docker image and it is saved as a tar in the root project. The docker image will be uploaded to an ECR registry when `cdk deploy` is run
+
+The `build-docker.sh` script will generate the image and tar file. (You need Docker installed obvs...) e.g:
+
+```bash
+$ ./build-docker.sh
+
+$ cdk deploy zeebe-hazelcast-stack
+```
+
+Destroy all resources:
+
+`$ cdk destroy`
+
+**AWS BILL WARNING** - The ECR registry created with the `zeebe-hazlecast-stack` does not get deleted with `cdk destroy`. This needs to be done manually 
+
+
+
+

@@ -1,0 +1,34 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'maven-publish'
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
+}
+
+group = 'com.github.tjayr'
+version = '1.0.1'
+sourceCompatibility = '17'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'software.amazon.awscdk:aws-cdk-lib:2.20.0'
+    implementation 'software.constructs:constructs:[10.0.0,11.0.0)'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.7.1'
+}
+
+mainClassName='com.github.tjayr.cdk.Camunda8App'
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from(components.java)
+        }
+    }
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

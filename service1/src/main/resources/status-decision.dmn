@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" xmlns:biodi="http://bpmn.io/schema/dmn/biodi/2.0" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="review" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.0.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.0.0">
+  <decision id="paper_review_decision" name="Paper Review Status">
+    <informationRequirement id="InformationRequirement_1q3l526">
+      <requiredInput href="#InputData_072utnj" />
+    </informationRequirement>
+    <decisionTable id="DecisionTable_1jicoxo">
+      <input id="Input_1">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>status</text>
+        </inputExpression>
+      </input>
+      <output id="Output_1" name="reviewResult" typeRef="string" biodi:width="364" />
+      <rule id="DecisionRule_0tbsyyb">
+        <inputEntry id="UnaryTests_06x3bcp">
+          <text>3000</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_1553t2i">
+          <text>MINOR_CHANGES</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_0ceafg2">
+        <inputEntry id="UnaryTests_09ok785">
+          <text>3500</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_12yucog">
+          <text>MAJOR_CHANGES</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_1ydhooq">
+        <inputEntry id="UnaryTests_1wk64sq">
+          <text>4500</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_0m2kycv">
+          <text>APPROVED</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <inputData id="InputData_072utnj" name="Status" />
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="paper_review_decision">
+        <dc:Bounds height="80" width="180" x="400" y="80" />
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="DMNShape_1upcdgi" dmnElementRef="InputData_072utnj">
+        <dc:Bounds height="45" width="125" x="197" y="97" />
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="DMNEdge_0g98iki" dmnElementRef="InformationRequirement_1q3l526">
+        <di:waypoint x="322" y="120" />
+        <di:waypoint x="380" y="120" />
+        <di:waypoint x="400" y="120" />
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>
