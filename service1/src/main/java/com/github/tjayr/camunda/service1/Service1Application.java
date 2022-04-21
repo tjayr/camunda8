@@ -8,7 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 @EnableZeebeClient
-@ZeebeDeployment(resources = "classpath:hello-world.bpmn")
+@ZeebeDeployment(resources = { "classpath:hello-world.bpmn", "classpath:hello-world-dmn.bpmn", "classpath:status-decision.dmn"})
 public class Service1Application {
 
     @Autowired
