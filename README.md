@@ -31,9 +31,8 @@ The process requires an input variable called `source` , the json value can be a
 
 ## Experimental
 
-The experimental folder contains docker-compose files for exporting data from Zeebe to Opensearch instead of Elasticsearch.  
+The experimental folder contains docker-compose files for exporting data from Zeebe to Opensearch instead of Elasticsearch.
 
-`client-app` is a module for interacting with the Zeebe api to deploy and start processes.
 
 ## Deploying on Fargate
 
