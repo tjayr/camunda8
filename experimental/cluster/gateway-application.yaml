@@ -1,0 +1,21 @@
+zeebe:
+  gateway:
+    network:
+      host: 0.0.0.0
+      port: 26500
+      minKeepAliveInterval: 30s
+
+    cluster:
+      contactPoint: zeebe1:26502
+      requestTimeout: 15s
+      clusterName: zeebe-cluster
+      memberId: gateway
+      host: 0.0.0.0
+      port: 26502
+      initialContactPoints: [zeebe1:26502, zeebe2:26502]
+
+  broker:
+    exporters:
+      hazelcast:
+        className: io.zeebe.hazelcast.exporter.HazelcastExporter
+        jarPath: exporters/zeebe-hazelcast-exporter.jar

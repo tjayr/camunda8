@@ -33,6 +33,7 @@ The process requires an input variable called `source` , the json value can be a
 
 The experimental folder contains docker-compose files for exporting data from Zeebe to Opensearch instead of Elasticsearch.
 
+The experiment/cluster folder contains the docker equivalent of the Zeebe cluster Fargate stack described below.
 
 ## Deploying on Fargate
 
@@ -43,22 +44,29 @@ The cdk module contains a CDK application with a number of stacks for deploying 
 ```bash
 $ cdk ls
 
-zeebe-hazelcast-stack
-zeebe-stack
+zeebe-cluster
+zeebe-cluster-with-monitor
+zeebe-single
 
-$ cdk diff zeebe-hazelcast-stack
 
-$ cdk deploy zeebe-hazelcast-stack
+$ cdk diff zeebe-cluster
+
+$ cdk deploy zeebe-cluster
 
 ```
 
-`zeebe-stack` will create a single Zeebe service (1 task, 1 container) instance on Fargate. The default VPC is used, the container is deployed into a public subnet.
+`zeebe-single` will create a single Zeebe service (1 task, 1 container) instance on Fargate. The default VPC is used, the container is deployed into a public subnet.
 This uses the `camunda/zeebe:8.0.0` from Docker hub. There is no additional configuration applied apart from the environment variables 
+
+`zeebe-cluster`, will deploy 3 Zeebe nodes as Fargate services, a gateway and 2 brokers. The nodes use epheneral task storage instead of an EFS file system volume. 
+Service discovery is enabled with a private dns namespace, so nodes can be addressesed  using `<node-name>.zeebe.cluster`, this is important for the Zeebe cluster to form.
+`enableDnsSupport` and `enableDnsHostnames` need to be enabled on the VPC - they usually are for the default VPC, but will need to be set if using a different VPC.
+
+`zeebe-cluster-with-monitor`, same as zeebe-cluster, but also includes the Simple Nonitor application deployed behind an Application Load Balancer
 
 `zeebe-hazelcast-stack`, will deploy Zeebe with the same network infrastructure as zeebe-stack but will also enable Hazelcast exporter.
 The Hazelcast exporter is added to custom Docker image and it is saved as a tar in the root project. The docker image will be uploaded to an ECR registry when `cdk deploy` is run
-
-The `build-docker.sh` script will generate the image and tar file. (You need Docker installed obvs...) e.g:
+The `build-docker.sh` script will generate the image and tar file. 
 
 ```bash
 $ ./build-docker.sh

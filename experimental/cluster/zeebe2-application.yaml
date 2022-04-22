@@ -1,0 +1,21 @@
+zeebe:
+  broker:
+    gateway:
+      enabled: false
+
+    network:
+      host: 0.0.0.0
+      portOffset: 5
+
+    exporters:
+      hazelcast:
+        className: io.zeebe.hazelcast.exporter.HazelcastExporter
+        jarPath: exporters/zeebe-hazelcast-exporter.jar
+
+    cluster:
+      nodeId: 1
+      partitionsCount: 2
+      replicationFactor: 2
+      clusterSize: 2
+      clusterName: zeebe-cluster
+      initialContactPoints: [zeebe1:26502, zeebe2:26502]
