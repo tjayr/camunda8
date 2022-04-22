@@ -16,8 +16,6 @@ public class Camunda8App {
                                   .build())
                               .build();
 
-        // For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html
-        //new CamundaDevStack(app, "camunda-dev-stack", props);
         new ZeebeStack(app, "zeebe-stack", props);
         new ZeebeHazelcastStack(app, "zeebe-hazelcast-stack", props);
         app.synth();
