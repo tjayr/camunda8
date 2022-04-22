@@ -17,7 +17,11 @@ public class Camunda8App {
                               .build();
 
         new ZeebeStack(app, "zeebe-stack", props);
-        new ZeebeHazelcastStack(app, "zeebe-hazelcast-stack", props);
+
+        //Run the build-docker.sh before commenting this line in - otherwise the tar file will be missing
+        // and this will not compile
+        //new ZeebeHazelcastStack(app, "zeebe-hazelcast-stack", props);
+
         app.synth();
     }
 }

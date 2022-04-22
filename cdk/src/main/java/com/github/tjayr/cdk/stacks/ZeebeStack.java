@@ -16,10 +16,6 @@ import java.util.Map;
 
 public class ZeebeStack extends Stack {
 
-    public ZeebeStack(final Construct scope, final String id) {
-        this(scope, id, null);
-    }
-
     public ZeebeStack(final Construct scope, final String id, final StackProps props) {
         super(scope, id, props);
 
