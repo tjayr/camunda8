@@ -1,0 +1,34 @@
+zeebe:
+  broker:
+    gateway:
+      enabled: false
+
+    network:
+      host: 0.0.0.0
+
+    exporters:
+      hazelcast:
+        className: io.zeebe.hazelcast.exporter.HazelcastExporter
+        jarPath: exporters/zeebe-hazelcast-exporter.jar
+
+
+    cluster:
+      nodeId: 0
+      partitionsCount: 2
+      replicationFactor: 2
+      clusterSize: 2
+      clusterName: zeebe-cluster
+      initialContactPoints: [zeebe1:26502, zeebe2:26552]
+      # Allows to specify a list of known other nodes to connect to on startup
+      # The contact points of the internal network configuration must be specified.
+      # The format is [HOST:PORT]
+      # Example:
+      # initialContactPoints : [ 192.168.1.22:26502, 192.168.1.32:26502 ]
+      #
+      # To guarantee the cluster can survive network partitions, all nodes must be specified
+      # as initial contact points.
+      #
+      # This setting can also be overridden using the environment variable ZEEBE_BROKER_CLUSTER_INITIALCONTACTPOINTS
+      # specifying a comma-separated list of contact points.
+      # Default is empty list:
+      #initialContactPoints: []

@@ -1,0 +1,120 @@
+version: "3.9"
+
+services:
+
+  zeebe-gateway:
+    image: camunda/zeebe:${CAMUNDA_PLATFORM_VERSION:-8.0.0}
+    ports:
+      - "26500:26500"
+      - "9600:9600"
+      - "5701:5701"
+      - "7091:7091"
+    environment:
+      ATOMIX_LOG_LEVEL: "DEBUG"
+      ZEEBE_LOG_LEVEL: "DEBUG"
+      ZEEBE_DEBUG: "true"
+      ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK: 0.998
+      ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK: 0.999
+      JAVA_TOOL_OPTIONS: >-
+          -Xms512m -Xmx512m
+          -Djava.rmi.server.hostname=0.0.0.0
+          -Djava.net.preferIPv4Stack=true
+          -Dcom.sun.management.jmxremote
+          -Dcom.sun.management.jmxremote.port=7091
+          -Dcom.sun.management.jmxremote.rmi.port=7091
+          -Dcom.sun.management.jmxremote.local.only=false
+          -Dcom.sun.management.jmxremote.authenticate=false          
+          -Dcom.sun.management.jmxremote.ssl=false
+          -Dcom.sun.management.jmxremote.ssl.need.client.auth=false
+          -Dcom.sun.management.jmxremote.registry.ssl=false
+    volumes:
+      - gateway:/usr/local/zeebe/data
+      - ./gateway-application.yaml:/usr/local/zeebe/config/application.yaml
+      - ../../zeebe-hazelcast-exporter-1.1.0-jar-with-dependencies.jar:/usr/local/zeebe/exporters/zeebe-hazelcast-exporter.jar
+    networks:
+      - camunda-platform
+
+  zeebe1:
+    image: camunda/zeebe:${CAMUNDA_PLATFORM_VERSION:-8.0.0}
+    ports:
+      - "7092:7091"
+    environment:
+      ATOMIX_LOG_LEVEL: "DEBUG"
+      ZEEBE_LOG_LEVEL: "DEBUG"
+      ZEEBE_DEBUG: "true"
+      ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK: 0.998
+      ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK: 0.999
+      JAVA_TOOL_OPTIONS: >-
+          -Xms512m -Xmx512m
+          -Djava.rmi.server.hostname=0.0.0.0
+          -Djava.net.preferIPv4Stack=true
+          -Dcom.sun.management.jmxremote
+          -Dcom.sun.management.jmxremote.port=7091
+          -Dcom.sun.management.jmxremote.rmi.port=7091
+          -Dcom.sun.management.jmxremote.local.only=false
+          -Dcom.sun.management.jmxremote.authenticate=false          
+          -Dcom.sun.management.jmxremote.ssl=false
+          -Dcom.sun.management.jmxremote.ssl.need.client.auth=false
+          -Dcom.sun.management.jmxremote.registry.ssl=false
+
+    volumes:
+      - zeebe1:/usr/local/zeebe/data
+      - ../../zeebe-hazelcast-exporter-1.1.0-jar-with-dependencies.jar:/usr/local/zeebe/exporters/zeebe-hazelcast-exporter.jar
+      - ./zeebe1-application.yaml:/usr/local/zeebe/config/application.yaml
+    depends_on:
+      - zeebe-gateway
+    networks:
+      - camunda-platform
+
+  zeebe2:
+    image: camunda/zeebe:${CAMUNDA_PLATFORM_VERSION:-8.0.0}
+    ports:
+      - "7093:7091"
+    environment:
+      ATOMIX_LOG_LEVEL: "DEBUG"
+      ZEEBE_LOG_LEVEL: "DEBUG"
+      ZEEBE_DEBUG: "true"
+      ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK: 0.998
+      ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK: 0.999
+      JAVA_TOOL_OPTIONS: >-
+          -Xms512m -Xmx512m
+          -Djava.rmi.server.hostname=0.0.0.0
+          -Djava.net.preferIPv4Stack=true
+          -Dcom.sun.management.jmxremote
+          -Dcom.sun.management.jmxremote.port=7091
+          -Dcom.sun.management.jmxremote.rmi.port=7091
+          -Dcom.sun.management.jmxremote.local.only=false
+          -Dcom.sun.management.jmxremote.authenticate=false          
+          -Dcom.sun.management.jmxremote.ssl=false
+          -Dcom.sun.management.jmxremote.ssl.need.client.auth=false
+          -Dcom.sun.management.jmxremote.registry.ssl=false
+    volumes:
+      - zeebe2:/usr/local/zeebe/data
+      - ../../zeebe-hazelcast-exporter-1.1.0-jar-with-dependencies.jar:/usr/local/zeebe/exporters/zeebe-hazelcast-exporter.jar
+      - ./zeebe2-application.yaml:/usr/local/zeebe/config/application.yaml
+    depends_on:
+      - zeebe-gateway
+    networks:
+      - camunda-platform
+
+  simple-monitor:
+    image: ghcr.io/camunda-community-hub/zeebe-simple-monitor:2.3.0
+    environment:
+      - zeebe.client.broker.gateway-address=zeebe-gateway:26500
+      - zeebe.client.worker.hazelcast.connection=zeebe-gateway:5701
+    ports:
+      - "8082:8082"
+    depends_on:
+      - zeebe-gateway
+      - zeebe1
+      - zeebe2
+    networks:
+      - camunda-platform
+
+volumes:
+  gateway:
+  zeebe1:
+  zeebe2:
+
+networks:
+  camunda-platform:

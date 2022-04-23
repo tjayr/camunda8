@@ -1,6 +1,6 @@
 package com.github.tjayr.cdk;
 
-import com.github.tjayr.cdk.stacks.ZeebeHazelcastStack;
+import com.github.tjayr.cdk.stacks.ZeebeCluster;
 import com.github.tjayr.cdk.stacks.ZeebeStack;
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.Environment;
@@ -16,7 +16,9 @@ public class Camunda8App {
                                   .build())
                               .build();
 
-        new ZeebeStack(app, "zeebe-stack", props);
+        new ZeebeStack(app, "zeebe-single", props);
+        new ZeebeCluster(app, "zeebe-cluster", props);
+        new ZeebeCluster(app, "zeebe-cluster-with-monitor", props);
 
         //Run the build-docker.sh before commenting this line in - otherwise the tar file will be missing
         // and this will not compile
