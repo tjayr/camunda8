@@ -18,4 +18,4 @@ zeebe:
       replicationFactor: 2
       clusterSize: 2
       clusterName: zeebe-cluster
-      initialContactPoints: [zeebe1:26502, zeebe2:26502]
+      initialContactPoints: [zeebe1:26502, zeebe2:26552]

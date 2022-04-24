@@ -3,7 +3,6 @@ package com.github.tjayr.cdk.stacks;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
-import software.amazon.awscdk.services.appmesh.ServiceDiscovery;
 import software.amazon.awscdk.services.ec2.*;
 import software.amazon.awscdk.services.ecr.Repository;
 import software.amazon.awscdk.services.ecs.Volume;
@@ -11,7 +10,6 @@ import software.amazon.awscdk.services.ecs.*;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.amazon.awscdk.services.servicediscovery.DnsRecordType;
-import software.amazon.awscdk.services.servicediscovery.NamespaceType;
 import software.amazon.awscdk.services.servicediscovery.PrivateDnsNamespace;
 import software.constructs.Construct;
 
@@ -35,7 +33,8 @@ public class ZeebeCluster extends Stack {
                 .securityGroupName("zeebe-cluster-dev-sg")
                 .vpc(vpc)
                 .build();
-        clusterSecurityGroup.addIngressRule(Peer.anyIpv4(), Port.tcpRange(26500, 26503));
+        clusterSecurityGroup.addIngressRule(Peer.anyIpv4(), Port.tcpRange(26500, 26502));
+        clusterSecurityGroup.addIngressRule(Peer.anyIpv4(), Port.udpRange(26500, 26502));
         clusterSecurityGroup.addIngressRule(Peer.anyIpv4(), Port.tcp(5701));
         clusterSecurityGroup.addIngressRule(Peer.anyIpv4(), Port.tcp(9600));
         clusterSecurityGroup.applyRemovalPolicy(RemovalPolicy.DESTROY);
@@ -49,9 +48,11 @@ public class ZeebeCluster extends Stack {
                 .vpc(vpc)
                 .build();
 
-        createGateway(zeebeCluster);
+        //createGateway(zeebeCluster);
         createBroker(zeebeCluster, 0);
         createBroker(zeebeCluster, 1);
+        createBroker(zeebeCluster, 2);
+
     }
 
     private FargateService createGateway(ICluster cluster) {
@@ -91,6 +92,7 @@ public class ZeebeCluster extends Stack {
                 .build();
     }
 
+
     private FargateTaskDefinition brokerTaskDefinition( int zeebeNodeId) {
 
         var dataVolume = Volume.builder().name("zeebe-broker-data-"+zeebeNodeId).build();
@@ -105,15 +107,15 @@ public class ZeebeCluster extends Stack {
 
         var brokerConf = new HashMap<String, String>();
         brokerConf.put("JAVA_TOOL_OPTIONS", "-Xms512m -Xmx512m " );
+        brokerConf.put("ZEEBE_BROKER_CLUSTER_NODEID", String.valueOf(zeebeNodeId));
         brokerConf.put("ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK", "0.998");
         brokerConf.put("ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK", "0.999");
         brokerConf.put("ZEEBE_BROKER_NETWORK_HOST", "0.0.0.0");
         brokerConf.put("ZEEBE_BROKER_CLUSTER_PARTITIONSCOUNT", "2");
-        brokerConf.put("ZEEBE_BROKER_CLUSTER_REPLICATIONFACTOR", "2");
-        brokerConf.put("ZEEBE_BROKER_CLUSTER_CLUSTERSIZE", "2");
-        brokerConf.put("ZEEBE_BROKER_CLUSTER_INITIALCONTACTPOINTS", "zeebe-broker-0."+ECS_CLUSTER_NAME+":26502, zeebe-broker-1."+ECS_CLUSTER_NAME+":26502");
-        brokerConf.put("ZEEBE_BROKER_CLUSTER_CLUSTERNAME", ECS_CLUSTER_NAME);
-        brokerConf.put("ZEEBE_BROKER_GATEWAY_ENABLE", "false");
+        brokerConf.put("ZEEBE_BROKER_CLUSTER_REPLICATIONFACTOR", "3");
+        brokerConf.put("ZEEBE_BROKER_CLUSTER_CLUSTERSIZE", "3");
+        brokerConf.put("ZEEBE_BROKER_CLUSTER_INITIALCONTACTPOINTS", "zeebe-broker-0."+ECS_CLUSTER_NAME+":26502, zeebe-broker-1."+ECS_CLUSTER_NAME+":26502, , zeebe-broker-2"+ECS_CLUSTER_NAME+":26502");
+        brokerConf.put("ZEEBE_BROKER_GATEWAY_ENABLE", "true");
         brokerConf.put("ZEEBE_LOG_LEVEL", "DEBUG");
         brokerConf.put("ZEEBE_DEBUG", "true");
         brokerConf.put("ATOMIX_LOG_LEVEL", "DEBUG");
@@ -168,19 +170,17 @@ public class ZeebeCluster extends Stack {
                         PortMapping.builder().containerPort(9600).hostPort(9600).build(),
                         PortMapping.builder().containerPort(26500).hostPort(26500).build(),
                         PortMapping.builder().containerPort(26501).hostPort(26501).build(),
-                        PortMapping.builder().containerPort(26502).hostPort(26502).build(),
-                        PortMapping.builder().containerPort(5701).hostPort(5701).build())
+                        PortMapping.builder().containerPort(26502).hostPort(26502).build())
                 )
                 .environment(
                     Map.of(
                     "JAVA_TOOL_OPTIONS", "-Xms512m -Xmx512m " ,
-                    "ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK", "0.998",
-                    "ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK", "0.999",
-                    "ZEEBE_BROKER_NETWORK_HOST", "0.0.0.0",
-                    "ZEEBE_GATEWAY_CLUSTER_HOST","0.0.0.0",
+                    "ZEEBE_STANDALONE_GATEWAY", "true",
+                    "ZEEBE_GATEWAY_NETWORK_HOST", "0.0.0.0",
+                    "ZEEBE_GATEWAY_NETWORK_PORT", "26500",
                     "ZEEBE_GATEWAY_CLUSTER_CONTACTPOINT", "zeebe-broker-0."+ECS_CLUSTER_NAME+":26502",
-                    "ZEEBE_GATEWAY_CLUSTER_REQUESTTIMEOUT", "30s",
-                    "ZEEBE_GATEWAY_CLUSTER_CLUSTERNAME", ECS_CLUSTER_NAME,
+                    "ZEEBE_GATEWAY_CLUSTER_PORT", "26502",
+                    "ZEEBE_GATEWAY_CLUSTER_HOST", "zeebe-gateway."+ECS_CLUSTER_NAME,
                     "ATOMIX_LOG_LEVEL", "DEBUG"
                     )
                 )

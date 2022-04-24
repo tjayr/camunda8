@@ -4,17 +4,25 @@ services:
 
   zeebe-gateway:
     image: camunda/zeebe:${CAMUNDA_PLATFORM_VERSION:-8.0.0}
+    depends_on:
+      - zeebe1
+      - zeebe2
     ports:
       - "26500:26500"
       - "9600:9600"
       - "5701:5701"
       - "7091:7091"
     environment:
+      ZEEBE_STANDALONE_GATEWAY: "true"
+      ZEEBE_GATEWAY_NETWORK_HOST: 0.0.0.0
+      ZEEBE_GATEWAY_NETWORK_PORT: 26500
+      ZEEBE_GATEWAY_CLUSTER_CONTACTPOINT: zeebe1:26502
+      ZEEBE_GATEWAY_CLUSTER_PORT: 26502
+      ZEEBE_GATEWAY_CLUSTER_HOST: zeebe-gateway
       ATOMIX_LOG_LEVEL: "DEBUG"
       ZEEBE_LOG_LEVEL: "DEBUG"
       ZEEBE_DEBUG: "true"
-      ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK: 0.998
-      ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK: 0.999
+      ZEEBE_GATEWAY_CLUSTER_CLUSTERNAME: "cluster"
       JAVA_TOOL_OPTIONS: >-
           -Xms512m -Xmx512m
           -Djava.rmi.server.hostname=0.0.0.0
@@ -29,8 +37,8 @@ services:
           -Dcom.sun.management.jmxremote.registry.ssl=false
     volumes:
       - gateway:/usr/local/zeebe/data
-      - ./gateway-application.yaml:/usr/local/zeebe/config/application.yaml
-      - ../../zeebe-hazelcast-exporter-1.1.0-jar-with-dependencies.jar:/usr/local/zeebe/exporters/zeebe-hazelcast-exporter.jar
+#      - ./gateway-application.yaml:/usr/local/zeebe/config/application.yaml
+#      - ../../zeebe-hazelcast-exporter-1.1.0-jar-with-dependencies.jar:/usr/local/zeebe/exporters/zeebe-hazelcast-exporter.jar
     networks:
       - camunda-platform
 
@@ -39,11 +47,18 @@ services:
     ports:
       - "7092:7091"
     environment:
+      ZEEBE_BROKER_CLUSTER_NODEID: 0
+      ZEEBE_BROKER_CLUSTER_PARTITIONSCOUNT: 2
+      ZEEBE_BROKER_CLUSTER_CLUSTERSIZE: 2
+      ZEEBE_BROKER_CLUSTER_REPLICATIONFACTOR: 2
+      ZEEBE_BROKER_CLUSTER_INITIALCONTACTPOINTS: "zeebe1:26502, zeebe2:26502"
       ATOMIX_LOG_LEVEL: "DEBUG"
       ZEEBE_LOG_LEVEL: "DEBUG"
       ZEEBE_DEBUG: "true"
       ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK: 0.998
       ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK: 0.999
+      ZEEBE_GATEWAY_CLUSTER_CLUSTERNAME: "cluster"
+      ZEEBE_BROKER_GATEWAY_ENABLE: "false"
       JAVA_TOOL_OPTIONS: >-
           -Xms512m -Xmx512m
           -Djava.rmi.server.hostname=0.0.0.0
@@ -59,10 +74,8 @@ services:
 
     volumes:
       - zeebe1:/usr/local/zeebe/data
-      - ../../zeebe-hazelcast-exporter-1.1.0-jar-with-dependencies.jar:/usr/local/zeebe/exporters/zeebe-hazelcast-exporter.jar
-      - ./zeebe1-application.yaml:/usr/local/zeebe/config/application.yaml
-    depends_on:
-      - zeebe-gateway
+#      - ../../zeebe-hazelcast-exporter-1.1.0-jar-with-dependencies.jar:/usr/local/zeebe/exporters/zeebe-hazelcast-exporter.jar
+#      - ./zeebe1-application.yaml:/usr/local/zeebe/config/application.yaml
     networks:
       - camunda-platform
 
@@ -71,11 +84,18 @@ services:
     ports:
       - "7093:7091"
     environment:
+      ZEEBE_BROKER_CLUSTER_NODEID: 1
+      ZEEBE_BROKER_CLUSTER_PARTITIONSCOUNT: 2
+      ZEEBE_BROKER_CLUSTER_CLUSTERSIZE: 2
+      ZEEBE_BROKER_CLUSTER_REPLICATIONFACTOR: 2
+      ZEEBE_BROKER_CLUSTER_INITIALCONTACTPOINTS: "zeebe1:26502, zeebe2:26502"
       ATOMIX_LOG_LEVEL: "DEBUG"
       ZEEBE_LOG_LEVEL: "DEBUG"
       ZEEBE_DEBUG: "true"
       ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK: 0.998
       ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK: 0.999
+      ZEEBE_GATEWAY_CLUSTER_CLUSTERNAME: "cluster"
+      ZEEBE_BROKER_GATEWAY_ENABLE: "false"
       JAVA_TOOL_OPTIONS: >-
           -Xms512m -Xmx512m
           -Djava.rmi.server.hostname=0.0.0.0
@@ -90,26 +110,24 @@ services:
           -Dcom.sun.management.jmxremote.registry.ssl=false
     volumes:
       - zeebe2:/usr/local/zeebe/data
-      - ../../zeebe-hazelcast-exporter-1.1.0-jar-with-dependencies.jar:/usr/local/zeebe/exporters/zeebe-hazelcast-exporter.jar
-      - ./zeebe2-application.yaml:/usr/local/zeebe/config/application.yaml
-    depends_on:
-      - zeebe-gateway
+#      - ../../zeebe-hazelcast-exporter-1.1.0-jar-with-dependencies.jar:/usr/local/zeebe/exporters/zeebe-hazelcast-exporter.jar
+#      - ./zeebe2-application.yaml:/usr/local/zeebe/config/application.yaml
     networks:
       - camunda-platform
 
-  simple-monitor:
-    image: ghcr.io/camunda-community-hub/zeebe-simple-monitor:2.3.0
-    environment:
-      - zeebe.client.broker.gateway-address=zeebe-gateway:26500
-      - zeebe.client.worker.hazelcast.connection=zeebe-gateway:5701
-    ports:
-      - "8082:8082"
-    depends_on:
-      - zeebe-gateway
-      - zeebe1
-      - zeebe2
-    networks:
-      - camunda-platform
+#  simple-monitor:
+#    image: ghcr.io/camunda-community-hub/zeebe-simple-monitor:2.3.0
+#    environment:
+#      - zeebe.client.broker.gateway-address=zeebe-gateway:26500
+#      - zeebe.client.worker.hazelcast.connection=zeebe-gateway:5701
+#    ports:
+#      - "8082:8082"
+#    depends_on:
+#      - zeebe-gateway
+#      - zeebe1
+#      - zeebe2
+#    networks:
+#      - camunda-platform
 
 volumes:
   gateway:

@@ -6,7 +6,10 @@ zeebe:
       minKeepAliveInterval: 30s
 
     cluster:
-      contactPoint: zeebe1:26502
+      partitionsCount: 2
+      replicationFactor: 2
+      clusterSize: 2
+      contactPoint: 127.0.0.1:26502
       requestTimeout: 15s
       clusterName: zeebe-cluster
       memberId: gateway
