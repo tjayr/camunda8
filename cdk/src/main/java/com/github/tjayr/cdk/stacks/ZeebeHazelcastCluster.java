@@ -4,6 +4,7 @@ import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.ec2.*;
+import software.amazon.awscdk.services.ecr.assets.DockerImageAsset;
 import software.amazon.awscdk.services.ecs.Volume;
 import software.amazon.awscdk.services.ecs.*;
 import software.amazon.awscdk.services.logs.LogGroup;
@@ -16,24 +17,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ZeebeCluster extends Stack {
+public class ZeebeHazelcastCluster extends Stack {
 
-    private static final int CLUSTER_SIZE = 3;
     private static final String ECS_CLUSTER_NAME="zeebe-cluster";
     private PrivateDnsNamespace dnsNamespace;
     private SecurityGroup clusterSecurityGroup;
-    private String ZEEBE_INITIAL_CONTACT_POINTS="";
 
-
-
-    public ZeebeCluster(final Construct scope, final String id, final StackProps props) {
+    public ZeebeHazelcastCluster(final Construct scope, final String id, final StackProps props) {
         super(scope, id, props);
 
         var vpc = Vpc.fromLookup(this, "default-vpc", VpcLookupOptions.builder().isDefault(true).build());
 
         clusterSecurityGroup = SecurityGroup.Builder.create(this, "sg-zeebe-cluster")
                 .allowAllOutbound(true)
-                .securityGroupName("zeebe-cluster-dev-sg")
+                .securityGroupName("zeebe-cluster-hazelcast-sg")
                 .vpc(vpc)
                 .build();
         clusterSecurityGroup.addIngressRule(Peer.anyIpv4(), Port.tcpRange(26500, 26502));
@@ -51,14 +48,82 @@ public class ZeebeCluster extends Stack {
                 .vpc(vpc)
                 .build();
 
+        createBroker(zeebeCluster, 0);
+        createBroker(zeebeCluster, 1);
+        createBroker(zeebeCluster, 2);
+        createSimpleMonitorService(zeebeCluster);
+    }
 
-        ZEEBE_INITIAL_CONTACT_POINTS = createZeebeContactPoints(CLUSTER_SIZE, 26502);
 
-        createGateway(zeebeCluster);
 
-        for(int i = 0; i < CLUSTER_SIZE; i++) {
-            createBroker(zeebeCluster, i);
-        }
+    private FargateService createGateway(ICluster cluster) {
+        return FargateService.Builder.create(this, "zeebe-gateway")
+                .cluster(cluster)
+                .desiredCount(1)
+                .minHealthyPercent(100).maxHealthyPercent(200)
+                .deploymentController(DeploymentController.builder().type(DeploymentControllerType.ECS).build())
+                .assignPublicIp(true)
+                .serviceName("zeebe-gateway")
+                .taskDefinition(gatewayTaskDefinition())
+                .vpcSubnets(SubnetSelection.builder().subnetType(SubnetType.PUBLIC).build())
+                .cloudMapOptions(CloudMapOptions.builder()
+                        .name("zeebe-gateway")
+                        .cloudMapNamespace(dnsNamespace)
+                        .dnsRecordType(DnsRecordType.A).build())
+                .securityGroups(List.of(clusterSecurityGroup))
+                .build();
+    }
+
+
+    private TaskDefinition gatewayTaskDefinition() {
+        var dataVolume = Volume.builder().name("zeebe-gw-data").build();
+
+        var td = FargateTaskDefinition.Builder.create(this, "zeebe-gateway-task-def")
+                .cpu(512)
+                .memoryLimitMiB(1024)
+                .family("dev-zeebe")
+                .build();
+        td.applyRemovalPolicy(RemovalPolicy.DESTROY);
+
+        var brokerConf = new HashMap<String, String>();
+        brokerConf.put("JAVA_TOOL_OPTIONS", "-Xms512m -Xmx512m");
+        brokerConf.put("ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK", "0.998");
+        brokerConf.put("ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK", "0.999");
+
+        brokerConf.put("ZEEBE_GATEWAY_NETWORK_HOST", "0.0.0.0");
+        brokerConf.put("ZEEBE_GATEWAY_CLUSTER_CONTACTPOINT", "zeebe-broker-0."+ECS_CLUSTER_NAME+":26502");
+        brokerConf.put("ZEEBE_BROKER_GATEWAY_ENABLE", "true");
+
+        brokerConf.put("ZEEBE_LOG_LEVEL", "DEBUG");
+        brokerConf.put("ZEEBE_DEBUG", "true");
+        brokerConf.put("ATOMIX_LOG_LEVEL", "DEBUG");
+
+        var zeebeContainer = td.addContainer("zeebe-gateway", ContainerDefinitionOptions.builder()
+                .cpu(512).memoryLimitMiB(1024)
+                .containerName("zeebe")
+                .image(ContainerImage.fromRegistry("camunda/zeebe:8.0.2"))
+                .portMappings(List.of(
+                        PortMapping.builder().containerPort(9600).hostPort(9600).build(),
+                        PortMapping.builder().containerPort(26500).hostPort(26500).build(),
+                        PortMapping.builder().containerPort(26501).hostPort(26501).build(),
+                        PortMapping.builder().containerPort(26502).hostPort(26502).build())
+                )
+                .environment(brokerConf)
+                .logging(LogDriver.awsLogs(AwsLogDriverProps.builder()
+                        .logGroup(LogGroup.Builder.create(this, "zeebe-gw-logs")
+                                .logGroupName("/ecs/zeebe-gw")
+                                .removalPolicy(RemovalPolicy.DESTROY)
+                                .retention(RetentionDays.ONE_DAY)
+                                .build())
+                        .streamPrefix("zeebe-gw")
+                        .build()))
+                .build());
+
+        zeebeContainer.addMountPoints(MountPoint.builder().readOnly(false).containerPath("/usr/local/zeebe/data")
+                .sourceVolume(dataVolume.getName())
+                .build());
+
+        return td;
     }
 
     private FargateService createBroker(ICluster cluster, int node) {
@@ -79,7 +144,6 @@ public class ZeebeCluster extends Stack {
                 .build();
     }
 
-
     private FargateTaskDefinition brokerTaskDefinition( int zeebeNodeId) {
 
         var dataVolume = Volume.builder().name("zeebe-broker-data-"+zeebeNodeId).build();
@@ -93,27 +157,30 @@ public class ZeebeCluster extends Stack {
         td.applyRemovalPolicy(RemovalPolicy.DESTROY);
 
         var brokerConf = new HashMap<String, String>();
-        brokerConf.put("JAVA_TOOL_OPTIONS", "-Xms512m -Xmx512m " );
+        brokerConf.put("JAVA_TOOL_OPTIONS", "-Xms512m -Xmx512m " +
+                "-Dzeebe.broker.exporters.hazelcast.className=io.zeebe.hazelcast.exporter.HazelcastExporter " +
+                "-Dzeebe.broker.exporters.hazelcast.jarPath=exporters/zeebe-hazelcast-exporter.jar " );
+
         brokerConf.put("ZEEBE_BROKER_CLUSTER_NODEID", String.valueOf(zeebeNodeId));
         brokerConf.put("ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK", "0.998");
         brokerConf.put("ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK", "0.999");
         brokerConf.put("ZEEBE_BROKER_NETWORK_HOST", "0.0.0.0");
         brokerConf.put("ZEEBE_BROKER_CLUSTER_PARTITIONSCOUNT", "2");
         brokerConf.put("ZEEBE_BROKER_CLUSTER_REPLICATIONFACTOR", "3");
-        brokerConf.put("ZEEBE_BROKER_CLUSTER_CLUSTERSIZE", String.valueOf(CLUSTER_SIZE));
-        brokerConf.put("ZEEBE_BROKER_CLUSTER_INITIALCONTACTPOINTS", ZEEBE_INITIAL_CONTACT_POINTS);
-        brokerConf.put("ZEEBE_BROKER_GATEWAY_ENABLE", "false");
+        brokerConf.put("ZEEBE_BROKER_CLUSTER_CLUSTERSIZE", "3");
+        brokerConf.put("ZEEBE_BROKER_CLUSTER_INITIALCONTACTPOINTS", "zeebe-broker-0."+ECS_CLUSTER_NAME+":26502, zeebe-broker-1."+ECS_CLUSTER_NAME+":26502, , zeebe-broker-2"+ECS_CLUSTER_NAME+":26502");
+        brokerConf.put("ZEEBE_BROKER_GATEWAY_ENABLE", "true");
         brokerConf.put("ZEEBE_LOG_LEVEL", "DEBUG");
         brokerConf.put("ZEEBE_DEBUG", "true");
         brokerConf.put("ATOMIX_LOG_LEVEL", "DEBUG");
 
-
         var zeebeContainer = td.addContainer("zeebe-image-"+zeebeNodeId, ContainerDefinitionOptions.builder()
                 .cpu(512).memoryLimitMiB(1024)
                 .containerName("zeebe")
-                .image(ContainerImage.fromRegistry("camunda/zeebe:8.0.2"))
+                .image(zeebeHazelcastImage(zeebeNodeId))
                 .portMappings(List.of(
                     PortMapping.builder().containerPort(9600).hostPort(9600).build(),
+                    PortMapping.builder().containerPort(5701).hostPort(5701).build(),
                     PortMapping.builder().containerPort(26500).hostPort(26500).build(),
                     PortMapping.builder().containerPort(26501).hostPort(26501).build(),
                     PortMapping.builder().containerPort(26502).hostPort(26502).build())
@@ -136,90 +203,63 @@ public class ZeebeCluster extends Stack {
         return td;
     }
 
-
-    private FargateService createGateway(ICluster cluster) {
-
-        return FargateService.Builder.create(this, "zeebe-gateway")
+    private FargateService createSimpleMonitorService(ICluster cluster) {
+        return FargateService.Builder.create(this, "simple-monitor-service")
                 .cluster(cluster)
                 .desiredCount(1)
                 .minHealthyPercent(100).maxHealthyPercent(200)
                 .deploymentController(DeploymentController.builder().type(DeploymentControllerType.ECS).build())
                 .assignPublicIp(true)
-                .serviceName("zeebe-gateway")
-                .taskDefinition(gatewayTaskDefinition())
+                .serviceName("simple-monitor")
+                .taskDefinition(simpleMonitorTaskDefinition())
                 .vpcSubnets(SubnetSelection.builder().subnetType(SubnetType.PUBLIC).build())
                 .cloudMapOptions(CloudMapOptions.builder()
-                        .name("zeebe-gateway")
+                        .name("simple-monitor")
                         .cloudMapNamespace(dnsNamespace)
                         .dnsRecordType(DnsRecordType.A).build())
                 .securityGroups(List.of(clusterSecurityGroup))
                 .build();
     }
 
-    private FargateTaskDefinition gatewayTaskDefinition() {
+    private FargateTaskDefinition simpleMonitorTaskDefinition() {
 
-        var dataVolume = Volume.builder().name("zeebe-gw-data").build();
-
-        var td = FargateTaskDefinition.Builder.create(this, "zeebe-gw-ecs-task-def")
+        var td = FargateTaskDefinition.Builder.create(this, "simple-monitor")
                 .cpu(512)
                 .memoryLimitMiB(1024)
-                .family("dev-zeebe")
-                .volumes(List.of(dataVolume))
+                .family("simple-monitor")
                 .build();
         td.applyRemovalPolicy(RemovalPolicy.DESTROY);
 
-        var zeebeContainer = td.addContainer("zeebe-gw", ContainerDefinitionOptions.builder()
+        var brokerConf = new HashMap<String, String>();
+        brokerConf.put("JAVA_TOOL_OPTIONS", "-Xms512m -Xmx512m " +
+                "-Dzeebe.client.broker.gateway-address=zeebe-broker-0."+ECS_CLUSTER_NAME+":26500 "+
+                "-Dzeebe.client.worker.hazelcast.connection=zeebe-broker-0."+ECS_CLUSTER_NAME+":5701");
+
+        td.addContainer("simple-monitor-container", ContainerDefinitionOptions.builder()
                 .cpu(512).memoryLimitMiB(1024)
-                .containerName("zeebe-gw")
-                .image(ContainerImage.fromRegistry("camunda/zeebe:8.0.2"))
+                .containerName("simple-monitor")
+                .image(ContainerImage.fromRegistry("ghcr.io/camunda-community-hub/zeebe-simple-monitor:2.3.0"))
                 .portMappings(List.of(
-                        PortMapping.builder().containerPort(9600).hostPort(9600).build(),
-                        PortMapping.builder().containerPort(26500).hostPort(26500).build(),
-                        PortMapping.builder().containerPort(26501).hostPort(26501).build(),
-                        PortMapping.builder().containerPort(26502).hostPort(26502).build())
-                )
-                .environment(
-                        Map.of(
-                            "JAVA_TOOL_OPTIONS", "-Xms512m -Xmx512m " ,
-                            "ZEEBE_STANDALONE_GATEWAY", "true",
-                            "ZEEBE_GATEWAY_NETWORK_HOST", "0.0.0.0",
-                            "ZEEBE_GATEWAY_NETWORK_PORT", "26500",
-                            "ZEEBE_GATEWAY_CLUSTER_CONTACTPOINT", "zeebe-broker-0."+ECS_CLUSTER_NAME+":26502",
-                            "ZEEBE_GATEWAY_CLUSTER_PORT", "26502",
-                            "ZEEBE_GATEWAY_CLUSTER_HOST", "zeebe-gateway."+ECS_CLUSTER_NAME,
-                            "ZEEBE_BROKER_GATEWAY_ENABLE", "true",
-                            "ATOMIX_LOG_LEVEL", "DEBUG"
-                        )
-                )
+                    PortMapping.builder().containerPort(8082).hostPort(8082).build()
+                ))
+                .environment(brokerConf)
                 .logging(LogDriver.awsLogs(AwsLogDriverProps.builder()
-                        .logGroup(LogGroup.Builder.create(this, "zeebe-logs")
-                                .logGroupName("/ecs/zeebe-gateway")
+                        .logGroup(LogGroup.Builder.create(this, "simple-monitor-logs")
+                                .logGroupName("/ecs/simple-monitor")
                                 .removalPolicy(RemovalPolicy.DESTROY)
                                 .retention(RetentionDays.ONE_DAY)
                                 .build())
-                        .streamPrefix("zeebe-gateway")
+                        .streamPrefix("simple-monitor")
                         .build()))
-                .build());
-
-        zeebeContainer.addMountPoints(MountPoint.builder().readOnly(false).containerPath("/usr/local/zeebe/data")
-                .sourceVolume(dataVolume.getName())
                 .build());
 
         return td;
     }
 
-    private String createZeebeContactPoints(int clusterSize, int port) {
-        StringBuilder bldr = new StringBuilder();
-        for(int i=0; i < clusterSize; i++) {
-            bldr.append("zeebe-broker-").append(i)
-                .append(".").append(ECS_CLUSTER_NAME)
-                .append(":").append(port);
-
-            if(i < clusterSize - 1) {
-                bldr.append(", ");
-            }
-        }
-        return bldr.toString();
+    private ContainerImage zeebeHazelcastImage(int nodeId) {
+        return ContainerImage.fromDockerImageAsset(
+                DockerImageAsset.Builder.create(this, "zeebe-hazelcast-image-"+nodeId).directory("docker").build()
+        );
     }
 
 }

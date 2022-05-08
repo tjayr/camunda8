@@ -4,3 +4,7 @@ zeebe:
       plaintext: true
     broker:
       gateway-address: 127.0.0.1:26500
+
+spring:
+  main:
+    allow-bean-definition-overriding: true
