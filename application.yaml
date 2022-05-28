@@ -4,3 +4,10 @@ zeebe:
       hazelcast:
         className: io.zeebe.hazelcast.exporter.HazelcastExporter
         jarPath: exporters/zeebe-hazelcast-exporter.jar
+
+
+logging:
+  level:
+    root: INFO
+    com: DEBUG
+    io: DEBUG

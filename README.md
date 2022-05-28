@@ -58,7 +58,7 @@ $ cdk deploy zeebe-cluster
 `zeebe-single` will create a single Zeebe service (1 task, 1 container) instance on Fargate. The default VPC is used, the container is deployed into a public subnet.
 This uses the `camunda/zeebe:8.0.0` from Docker hub. There is no additional configuration applied apart from the environment variables 
 
-`zeebe-cluster`, will deploy 3 Zeebe broker nodes with embedded gateways as Fargate services. The nodes use epheneral task storage instead of an EFS file system volume. Service discovery is enabled with a private dns namespace, so nodes can be addressed  using `<broker-name>.zeebe-cluster:<port>`. This is important in order to get the Zeebe cluster to form, the dns names are used as the values passed to `ZEEBE_BROKER_CLUSTER_INITIALCONTACTPOINTS`.
+`zeebe-cluster`, will deploy 1 Zeebe Gateway with 3 Zeebe broker nodes as Fargate services. The nodes use epheneral task storage instead of an EFS file system volume. Service discovery is enabled with a private dns namespace, so nodes can be addressed  using `<broker-name>.zeebe-cluster:<port>`. This is important in order to get the Zeebe cluster to form, the dns names are used as the values passed to `ZEEBE_BROKER_CLUSTER_INITIALCONTACTPOINTS`.
 `enableDnsSupport` and `enableDnsHostnames` need to be enabled on the VPC - they usually are for the default VPC, but will need to be set if using a different VPC.
 
 `zeebe-cluster-with-monitor`, same as zeebe-cluster, but also includes the Simple Nonitor application deployed behind an Application Load Balancer

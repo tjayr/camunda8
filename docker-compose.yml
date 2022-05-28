@@ -2,19 +2,23 @@ version: "3.9"
 
 services:
 
-  zeebe:
-    image: camunda/zeebe:${CAMUNDA_PLATFORM_VERSION:-8.0.0}
-      #container_name: zeebe
+  zeebe-gw:
+    image: camunda/zeebe:${CAMUNDA_PLATFORM_VERSION:-8.0.2}
     ports:
       - "26500:26500"
-      - "9600:9600"
-      - "5701:5701"
     environment:
       - ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_CLASSNAME=io.camunda.zeebe.exporter.ElasticsearchExporter
       - ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_ARGS_URL=http://elasticsearch:9200
       - ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_ARGS_BULK_SIZE=1
       - ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK=0.998
       - ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK=0.999
+      - ZEEBE_GATEWAY_CLUSTER_CONTACTPOINT=zeebe:26502
+      - ZEEBE_BROKER_GATEWAY_ENABLE=true
+      - ZEEBE_STANDALONE_GATEWAY=true
+      - ZEEBE_GATEWAY_NETWORK_HOST=0.0.0.0
+      - ZEEBE_GATEWAY_NETWORK_PORT=26500
+      - ZEEBE_GATEWAY_CLUSTER_PORT=26502
+      - ZEEBE_GATEWAY_CLUSTER_HOST=zeebe-gw
       - "JAVA_TOOL_OPTIONS=-Xms512m -Xmx512m"
     volumes:
       - zeebe:/usr/local/zeebe/data
@@ -22,18 +26,64 @@ services:
       - ./application.yaml:/usr/local/zeebe/config/application.yaml
     networks:
       - camunda-platform
-        #    depends_on:
-        #      - elasticsearch
-
-  monitor:
-    container_name: zeebe-script-worker
-    image: ghcr.io/camunda-community-hub/zeebe-script-worker:1.0.0
-    environment:
-      - zeebe.client.broker.contactPoint=zeebe:26500
     depends_on:
-      - zeebe
+      - elasticsearch
+
+  zeebe:
+    image: camunda/zeebe:${CAMUNDA_PLATFORM_VERSION:-8.0.2}
+    environment:
+      - ZEEBE_BROKER_CLUSTER_NODEID=0
+      - ZEEBE_BROKER_CLUSTER_PARTITIONSCOUNT=2
+      - ZEEBE_BROKER_CLUSTER_CLUSTERSIZE=2
+      - ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_CLASSNAME=io.camunda.zeebe.exporter.ElasticsearchExporter
+      - ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_ARGS_URL=http://elasticsearch:9200
+      - ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_ARGS_BULK_SIZE=1
+      - ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK=0.998
+      - ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK=0.999
+      - ZEEBE_BROKER_GATEWAY_ENABLE=false
+      - ZEEBE_BROKER_CLUSTER_INITIALCONTACTPOINTS=zeebe:26502,zeebe2:26502
+      - "JAVA_TOOL_OPTIONS=-Xms512m -Xmx512m"
+    volumes:
+      - zeebegw:/usr/local/zeebe/data
+      - ./zeebe-hazelcast-exporter-1.1.0-jar-with-dependencies.jar:/usr/local/zeebe/exporters/zeebe-hazelcast-exporter.jar
+      - ./application.yaml:/usr/local/zeebe/config/application.yaml
     networks:
       - camunda-platform
+    depends_on:
+      - elasticsearch
+
+  zeebe2:
+    image: camunda/zeebe:${CAMUNDA_PLATFORM_VERSION:-8.0.2}
+    environment:
+      - ZEEBE_BROKER_CLUSTER_NODEID=1
+      - ZEEBE_BROKER_CLUSTER_PARTITIONSCOUNT=2
+      - ZEEBE_BROKER_CLUSTER_CLUSTERSIZE=2
+      - ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_CLASSNAME=io.camunda.zeebe.exporter.ElasticsearchExporter
+      - ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_ARGS_URL=http://elasticsearch:9200
+      - ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_ARGS_BULK_SIZE=1
+      - ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK=0.998
+      - ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK=0.999
+      - ZEEBE_BROKER_GATEWAY_ENABLE=false
+      - ZEEBE_BROKER_CLUSTER_INITIALCONTACTPOINTS=zeebe:26502,zeebe2:26502
+      - "JAVA_TOOL_OPTIONS=-Xms512m -Xmx512m"
+    volumes:
+      - zeebe2:/usr/local/zeebe/data
+      - ./zeebe-hazelcast-exporter-1.1.0-jar-with-dependencies.jar:/usr/local/zeebe/exporters/zeebe-hazelcast-exporter.jar
+      - ./application.yaml:/usr/local/zeebe/config/application.yaml
+    networks:
+      - camunda-platform
+    depends_on:
+      - elasticsearch
+
+#  script-worker:
+#    container_name: zeebe-script-worker
+#    image: ghcr.io/camunda-community-hub/zeebe-script-worker:1.0.0
+#    environment:
+#      - zeebe.client.broker.contactPoint=zeebe:26500
+#    depends_on:
+#      - zeebe
+#    networks:
+#      - camunda-platform
 
   simple-monitor-in-memory:
     image: ghcr.io/camunda-community-hub/zeebe-simple-monitor:2.3.0
@@ -51,8 +101,8 @@ services:
 
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch-oss:${ELASTIC_VERSION:-7.10.2}
-    #image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-7.10.2}
+    #image: docker.elastic.co/elasticsearch/elasticsearch-oss:${ELASTIC_VERSION:-7.10.2}
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-7.13.3}
     #container_name: elasticsearch
     ports:
       - "9200:9200"
@@ -79,7 +129,9 @@ services:
       - camunda-platform
 
 volumes:
+  zeebegw:
   zeebe:
+  zeebe2:
   elastic:
 
 networks:
