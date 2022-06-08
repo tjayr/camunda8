@@ -1,0 +1,88 @@
+{
+  "family": "zeebe-test",
+  "executionRoleArn": "arn:aws:iam::245150592077:role/ecsTaskExecutionRole",
+  "placementConstraints": [],
+  "memory": "512",
+  "taskRoleArn": "arn:aws:iam::245150592077:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "cpu": "512",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "volumes": [
+    {
+      "name": "application_scratch",
+      "host": {}
+    }
+  ],
+
+  "containerDefinitions": [
+    {
+      "image": "camunda/zeebe:8.0.2",
+      "name": "zeebe-gateway",
+      "essential": true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/zeebe-gateway",
+          "awslogs-region": "eu-west-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "portMappings": [
+        {
+          "hostPort": 26500,
+          "protocol": "tcp",
+          "containerPort": 26500
+        }
+      ],
+      "cpu": 256,
+      "memoryReservation": 512,
+      "environment": [
+        {
+          "name": "ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK",
+          "value": "0.998"
+        },
+        {
+          "name": "ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK",
+          "value": "0.999"
+        },
+        {
+          "name": "ZEEBE_GATEWAY_CLUSTER_CONTACTPOINT",
+          "value": "zeebe-gateway.zeebe-cluster.net:26502"
+        },
+        {
+          "name": "ZEEBE_BROKER_GATEWAY_ENABLE",
+          "value": "true"
+        },
+        {
+          "name": "ZEEBE_STANDALONE_GATEWAY",
+          "value": "true"
+        },
+        {
+          "name": "ZEEBE_GATEWAY_NETWORK_HOST",
+          "value": "0.0.0.0"
+        },
+        {
+          "name": "ZEEBE_GATEWAY_NETWORK_PORT",
+          "value": "26500"
+        },
+        {
+          "name": "ZEEBE_GATEWAY_CLUSTER_PORT",
+          "value": "26502"
+        },
+        {
+          "name": "ZEEBE_GATEWAY_CLUSTER_HOST",
+          "value": "zeebe-gateway.zeebe-cluster.net"
+        },
+        {
+          "name": "JAVA_TOOL_OPTIONS",
+          "value": "-Xms512m -Xmx512m"
+        }
+      ],
+      "secrets": []
+    }
+
+  ]
+}
+

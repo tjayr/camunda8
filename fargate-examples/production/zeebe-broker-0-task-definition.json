@@ -1,0 +1,88 @@
+{
+  "family": "zeebe-broker-0",
+  "executionRoleArn": "arn:aws:iam::245150592077:role/ecsTaskExecutionRole",
+  "placementConstraints": [],
+  "memory": "1024",
+  "taskRoleArn": "arn:aws:iam::245150592077:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "cpu": "512",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "volumes": [
+    {
+      "name": "application_scratch",
+      "host": {}
+    }
+  ],
+
+  "containerDefinitions": [
+    {
+      "image": "camunda/zeebe:8.0.2",
+      "name": "zeebe-broker-0",
+      "essential": true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/zeebe-broker-0",
+          "awslogs-region": "eu-west-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "portMappings": [
+        {
+          "hostPort": 26500,
+          "protocol": "tcp",
+          "containerPort": 26500
+        },
+        {
+          "hostPort": 26501,
+          "protocol": "tcp",
+          "containerPort": 26501
+        },
+        {
+          "hostPort": 26502,
+          "protocol": "tcp",
+          "containerPort": 26502
+        }
+      ],
+      "environment": [
+        {
+          "name": "ZEEBE_BROKER_CLUSTER_NODEID",
+          "value": "0"
+        },
+        {
+          "name": "ZEEBE_BROKER_CLUSTER_PARTITIONSCOUNT",
+          "value": "2"
+        },
+        {
+          "name": "ZEEBE_BROKER_CLUSTER_CLUSTERSIZE",
+          "value": "2"
+        },
+        {
+          "name": "ZEEBE_BROKER_GATEWAY_ENABLE",
+          "value": "false"
+        },
+        {
+          "name": "ZEEBE_BROKER_CLUSTER_INITIALCONTACTPOINTS",
+          "value": "zeebe-broker-0.zeebe-cluster.net:26502, zeebe-broker-1.zeebe-cluster.net:26502, zeebe-broker-2.zeebe-cluster.net:26502"
+        },
+        {
+          "name": "ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK",
+          "value": "0.998"
+        },
+        {
+          "name": "ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK",
+          "value": "0.999"
+        },
+
+        {
+          "name": "JAVA_TOOL_OPTIONS",
+          "value": "-Xms512m -Xmx512m"
+        }
+      ],
+      "secrets": []
+    }
+  ]
+}
+
