@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+
+  zeebe-gw:
+    image: camunda/zeebe:${CAMUNDA_PLATFORM_VERSION:-8.0.2}
+    ports:
+      - "26500:26500"
+    environment:
+      - ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK=0.998
+      - ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK=0.999
+      - ZEEBE_GATEWAY_CLUSTER_CONTACTPOINT=zeebe:26502
+      - ZEEBE_BROKER_GATEWAY_ENABLE=true
+      - ZEEBE_STANDALONE_GATEWAY=true
+      - ZEEBE_GATEWAY_NETWORK_HOST=0.0.0.0
+      - ZEEBE_GATEWAY_NETWORK_PORT=26500
+      - ZEEBE_GATEWAY_CLUSTER_PORT=26502
+      - ZEEBE_GATEWAY_CLUSTER_HOST=zeebe-gw
+      - zeebe_gateway_interceptors_0_className=com.github.tjayr.ZeebeTenantInterceptor
+      - zeebe_gateway_interceptors_0_jarPath=/var/tmp/multi-tenant-interceptor-1.1-all.jar
+      - "JAVA_TOOL_OPTIONS=-Xms512m -Xmx512m"
+    volumes:
+      - zeebei:/usr/local/zeebe/data
+      - ./multi-tenant-interceptor/build/libs/multi-tenant-interceptor-1.1-all.jar:/var/tmp/multi-tenant-interceptor-1.1-all.jar
+      #- ./application.yaml:/usr/local/zeebe/config/application.yaml
+    networks:
+      - camunda-platform
+
+  zeebe:
+    image: camunda/zeebe:${CAMUNDA_PLATFORM_VERSION:-8.0.2}
+    environment:
+      - ZEEBE_BROKER_CLUSTER_NODEID=0
+      - ZEEBE_BROKER_CLUSTER_PARTITIONSCOUNT=1
+      - ZEEBE_BROKER_CLUSTER_CLUSTERSIZE=1
+      - ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK=0.998
+      - ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK=0.999
+      - ZEEBE_BROKER_GATEWAY_ENABLE=false
+      - ZEEBE_BROKER_CLUSTER_INITIALCONTACTPOINTS=zeebe:26502
+      - "JAVA_TOOL_OPTIONS=-Xms512m -Xmx512m"
+    volumes:
+      - zeebe1:/usr/local/zeebe/data
+      - ./application.yaml:/usr/local/zeebe/config/application.yaml
+    networks:
+      - camunda-platform
+
+volumes:
+  zeebei:
+  zeebe1:
+
+
+networks:
+  camunda-platform:

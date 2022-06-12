@@ -3,3 +3,5 @@ rootProject.name = 'camunda8-examples'
 include 'service1'
 include 'service2'
 include 'cdk'
+include 'multi-tenant-interceptor'
+

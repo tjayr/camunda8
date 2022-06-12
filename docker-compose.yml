@@ -21,8 +21,9 @@ services:
       - ZEEBE_GATEWAY_CLUSTER_HOST=zeebe-gw
       - "JAVA_TOOL_OPTIONS=-Xms512m -Xmx512m"
     volumes:
-      - zeebe:/usr/local/zeebe/data
+      - zeebegw:/usr/local/zeebe/data
       - ./zeebe-hazelcast-exporter-1.1.0-jar-with-dependencies.jar:/usr/local/zeebe/exporters/zeebe-hazelcast-exporter.jar
+      - ./multi-tenant-interceptor/build/libs/multi-tenant-interceptor-1.1-all.jar:/var/tmp/multi-tenant-interceptor-1.1-all.jar
       - ./application.yaml:/usr/local/zeebe/config/application.yaml
     networks:
       - camunda-platform

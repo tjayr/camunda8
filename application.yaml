@@ -1,9 +1,14 @@
 zeebe:
-  broker:
-    exporters:
-      hazelcast:
-        className: io.zeebe.hazelcast.exporter.HazelcastExporter
-        jarPath: exporters/zeebe-hazelcast-exporter.jar
+  gateway:
+    interceptors:
+      - id: tenant-interceptor
+        className: com.github.tjayr.server.ZeebeTenantInterceptor
+        jarPath: /var/tmp/multi-tenant-interceptor-1.1-all.jar
+#  broker:
+#    exporters:
+#      hazelcast:
+#        className: io.zeebe.hazelcast.exporter.HazelcastExporter
+#        jarPath: exporters/zeebe-hazelcast-exporter.jar
 
 
 logging:

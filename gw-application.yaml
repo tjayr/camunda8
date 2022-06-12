@@ -1,0 +1,11 @@
+zeebe:
+  gateway:
+    interceptors:
+      - id: tenant-interceptor
+        className: com.github.tjayr.ZeebeTenantInterceptor
+        jarPath: /var/tmp/multi-tenant-interceptor-1.1-all.jar
+
+logging:
+  level:
+    root: INFO
+    com: DEBUG
