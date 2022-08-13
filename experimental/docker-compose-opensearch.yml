@@ -54,7 +54,7 @@ services:
       - elasticsearch
 
   elasticsearch:
-    image: opensearchproject/opensearch:1.2.0
+    image: opensearchproject/opensearch:2.2.0
     environment:
       - cluster.name=opensearch-cluster
       - node.name=opensearch-node1
@@ -83,7 +83,7 @@ services:
       retries: 3
 
   opensearch-dashboards:
-    image: opensearchproject/opensearch-dashboards:1.2.0
+    image: opensearchproject/opensearch-dashboards:2.2.0
     ports:
       - 0.0.0.0:5601:5601
     expose:
